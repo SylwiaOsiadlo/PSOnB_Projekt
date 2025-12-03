@@ -22,35 +22,38 @@ class Server:
         self.is_leader = True
         print(f"--- [INFO] Serwer {self.server_id} został wybrany na LIDERA ---")
 
-    def broadcast_message(self, text_message: str):
+    def broadcast_message(self, message_data: List[int]):
+        """
+        Lider koduje podaną wiadomość i rozsyła do sąsiadów.
+        message_data: lista liczb z zakresu 0-7 (dla RS 7,3)
+        """
         if not self.is_leader:
+            print(f"[Błąd] Serwer {self.server_id} nie jest liderem.")
             return
 
-        print(f"\n[LIDER {self.server_id}] Chce wysłać: '{text_message}'")
+        print(f"\n[LIDER {self.server_id}] Otrzymał zlecenie wysłania: {message_data}")
 
-        # Dane wejściowe (symulacja)
-        data_packet = [1, 3, 7]
-        print(f"[LIDER {self.server_id}] Dane do zakodowania (k=3): {data_packet}")
+        # 1. Kodowanie wiadomości (używamy naszej klasy RS)
+        # Wynik to np. [1, 3, 7, x, y, z, q]
+        encoded_packet = self.rs.encode(message_data)
+        print(f"[LIDER {self.server_id}] Zakodowano (dodano nadmiarowość): {encoded_packet}")
 
-        # Kodowanie
-        encoded_packet = self.rs.encode(data_packet)
-        print(f"[LIDER {self.server_id}] Wiadomość zakodowana (n=7): {encoded_packet}")
-
-        # Wysyłanie do sąsiadów
+        # 2. Rozsyłanie do sąsiadów
         for neighbor in self.neighbors:
-            print(f"  -> Wysyłanie pakietu do Serwera {neighbor.server_id}...")
+            print(f"  -> Transmisja do Serwera {neighbor.server_id}...")
             time.sleep(0.5)
 
-            # Tworzymy kopię wiadomości do wysłania
+            # Kopia pakietu do wysłania
             packet_to_send = list(encoded_packet)
 
-            # --- SYMULACJA BŁĘDU ---
-            # Celowo psujemy wiadomość tylko dla Serwera nr 1 (żeby pokazać różnicę)
+            # --- SYMULACJA USZKODZEŃ ---
+            # Tutaj nadal trzymamy nasz mechanizm psucia dla testów
             if neighbor.server_id == 1:
-                print(f"     [!!!] Wstrzykiwanie błędu transmisji do Serwera {neighbor.server_id}!")
-                # Zmieniamy pierwszą wartość z '1' na '5' (błąd!)
-                packet_to_send[0] = 5
-                print(f"     [!!!] Wysłano uszkodzony pakiet: {packet_to_send}")
+                print(f"     [!!!] AWARIA ŁĄCZA! Pakiet ulega uszkodzeniu w locie.")
+                # Zmieniamy pierwszy bajt na losową inną wartość (np. 0)
+                old_val = packet_to_send[0]
+                packet_to_send[0] = (old_val + 1) % 8
+                print(f"     [!!!] Zmieniono wartość {old_val} -> {packet_to_send[0]}")
 
             neighbor.receive_packet(packet_to_send, sender_id=self.server_id)
 

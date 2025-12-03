@@ -1,31 +1,31 @@
 # Nazwa pliku: main.py
-from server import Server  # <-- Importujemy klasę Server z pliku server.py
+from server import Server
 
 
 def main():
-    print("=== SYMULACJA SYSTEMU ROZPROSZONEGO (4 SERWERY) ===\n")
+    print("=== SYMULACJA SIECI Z KOREKCJĄ BŁĘDÓW REEDA-SOLOMONA ===\n")
 
-    # 1. Tworzenie 4 serwerów
+    # 1. Inicjalizacja serwerów
     servers = [Server(i) for i in range(4)]
-
-    # 2. Budowanie topologii grafu
     s0, s1, s2, s3 = servers
 
-    # Lider (s0) połączony z resztą
+    # 2. Budowa topologii (Lider w centrum)
     s0.connect_neighbor(s1)
     s0.connect_neighbor(s2)
     s0.connect_neighbor(s3)
-
-    # Dodatkowe połączenie między s1 i s2
+    # Opcjonalne połączenia między innymi
     s1.connect_neighbor(s2)
 
     # 3. Wybór lidera
     leader = s0
     leader.set_as_leader()
 
-    # 4. Symulacja transmisji
-    original_message = "Hello World"
-    leader.broadcast_message(original_message)
+    # 4. PRZEBIEG TESTU
+    # Definiujemy wiadomość. Pamiętaj: liczby 0-7 (bo RS 7,3 działa na 3 bitach)
+    test_message = [5, 2, 7]
+
+    print(f"\n--- Rozpoczęcie transmisji wiadomości: {test_message} ---")
+    leader.broadcast_message(test_message)
 
     print("\n=== KONIEC SYMULACJI ===")
 
