@@ -22,38 +22,39 @@ class Server:
         self.is_leader = True
         print(f"--- [INFO] Serwer {self.server_id} został wybrany na LIDERA ---")
 
-    def broadcast_message(self, message_data: List[int]):
+    def broadcast_message(self, message_data: List[int], simulation_error_target: int = -1):
         """
-        Lider koduje podaną wiadomość i rozsyła do sąsiadów.
-        message_data: lista liczb z zakresu 0-7 (dla RS 7,3)
+        message_data: lista danych do wysłania.
+        simulation_error_target: ID serwera, który ma otrzymać uszkodzony pakiet (dla testów).
+                                 Domyślnie -1 (brak błędów).
         """
         if not self.is_leader:
-            print(f"[Błąd] Serwer {self.server_id} nie jest liderem.")
             return
 
         print(f"\n[LIDER {self.server_id}] Otrzymał zlecenie wysłania: {message_data}")
 
-        # 1. Kodowanie wiadomości (używamy naszej klasy RS)
-        # Wynik to np. [1, 3, 7, x, y, z, q]
+        # 1. Kodowanie
         encoded_packet = self.rs.encode(message_data)
-        print(f"[LIDER {self.server_id}] Zakodowano (dodano nadmiarowość): {encoded_packet}")
+        print(f"[LIDER {self.server_id}] Zakodowano: {encoded_packet}")
 
-        # 2. Rozsyłanie do sąsiadów
+        # 2. Rozsyłanie
         for neighbor in self.neighbors:
             print(f"  -> Transmisja do Serwera {neighbor.server_id}...")
             time.sleep(0.5)
 
-            # Kopia pakietu do wysłania
             packet_to_send = list(encoded_packet)
 
-            # --- SYMULACJA USZKODZEŃ ---
-            # Tutaj nadal trzymamy nasz mechanizm psucia dla testów
-            if neighbor.server_id == 1:
-                print(f"     [!!!] AWARIA ŁĄCZA! Pakiet ulega uszkodzeniu w locie.")
-                # Zmieniamy pierwszy bajt na losową inną wartość (np. 0)
-                old_val = packet_to_send[0]
-                packet_to_send[0] = (old_val + 1) % 8
-                print(f"     [!!!] Zmieniono wartość {old_val} -> {packet_to_send[0]}")
+            # --- LOGIKA WPROWADZANIA BŁĘDU (DYNAMICZNA) ---
+            # Sprawdzamy, czy ten sąsiad został wskazany jako cel ataku/błędu
+            if neighbor.server_id == simulation_error_target:
+                print(f"     [SYMULACJA] Celowe uszkodzenie symbolu dla Serwera {neighbor.server_id}!")
+
+                # Typ błędu: Zmiana wartości jednego symbolu (Bit flip / Symbol corruption)
+                # Zmieniamy pierwszy element na przeciwny w ciele GF(8) lub po prostu inny
+                original = packet_to_send[0]
+                packet_to_send[0] = (original + 1) % 8
+
+                print(f"     [SYMULACJA] Zmieniono: {original} -> {packet_to_send[0]}")
 
             neighbor.receive_packet(packet_to_send, sender_id=self.server_id)
 
@@ -67,8 +68,6 @@ class Server:
         self.process_data(decoded_data)
 
     def process_data(self, data):
-        # Sprawdzenie czy to to, co wysłaliśmy ([1, 3, 7])
-        if data == [1, 3, 7]:
-            print(f"    [Serwer {self.server_id}] Sukces! Wiadomość poprawna.")
-        else:
-            print(f"    [Serwer {self.server_id}] Porażka! Dane uszkodzone.")
+        """Wyświetla ostateczny wynik po dekodowaniu."""
+        # Nie porównujemy już ze "sztywnym" wzorcem, bo wiadomości są dynamiczne.
+        print(f"    [Serwer {self.server_id}] ==> Odebrana wiadomość (finalna): {data}")

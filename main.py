@@ -1,31 +1,39 @@
-# Nazwa pliku: main.py
 from server import Server
+import time
 
 
 def main():
-    print("=== SYMULACJA SIECI Z KOREKCJĄ BŁĘDÓW REEDA-SOLOMONA ===\n")
+    print("=== SYMULACJA: KOREKCJA BŁĘDÓW REEDA-SOLOMONA (RS 7,3) ===\n")
 
-    # 1. Inicjalizacja serwerów
+    # 1. Konfiguracja sieci
     servers = [Server(i) for i in range(4)]
     s0, s1, s2, s3 = servers
 
-    # 2. Budowa topologii (Lider w centrum)
     s0.connect_neighbor(s1)
     s0.connect_neighbor(s2)
     s0.connect_neighbor(s3)
-    # Opcjonalne połączenia między innymi
-    s1.connect_neighbor(s2)
+    s1.connect_neighbor(s2)  # Dodatkowa krawędź
 
-    # 3. Wybór lidera
     leader = s0
     leader.set_as_leader()
 
-    # 4. PRZEBIEG TESTU
-    # Definiujemy wiadomość. Pamiętaj: liczby 0-7 (bo RS 7,3 działa na 3 bitach)
-    test_message = [5, 2, 7]
+    # --- SCENARIUSZ 1: Transmisja bez błędów ---
+    print("\n--- TEST 1: Transmisja idealna ---")
+    msg_clean = [1, 2, 3]
+    leader.broadcast_message(msg_clean)
+    # Nie podajemy simulation_error_target, więc domyślnie jest brak błędu
 
-    print(f"\n--- Rozpoczęcie transmisji wiadomości: {test_message} ---")
-    leader.broadcast_message(test_message)
+    time.sleep(1)
+
+    # --- SCENARIUSZ 2: Wprowadzenie błędu (Wymaganie projektowe) ---
+    print("\n--- TEST 2: Symulacja uszkodzenia symbolu ---")
+    msg_danger = [7, 0, 7]
+
+    # Tutaj decydujemy: "Uszkodź wiadomość dla Serwera nr 3"
+    target_victim = 3
+    print(f"(Celujemy w Serwer {target_victim})")
+
+    leader.broadcast_message(msg_danger, simulation_error_target=target_victim)
 
     print("\n=== KONIEC SYMULACJI ===")
 
