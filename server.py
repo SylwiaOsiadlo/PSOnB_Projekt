@@ -10,7 +10,6 @@ class Server:
         self.neighbors: List['Server'] = []
         self.is_leader = False
         self.rs = RSCoder()
-        # Funkcja do wysyłania tekstu do GUI (jeśli brak, używa zwykłego print)
         self.log = log_callback if log_callback else print
 
     def connect_neighbor(self, other_server: 'Server'):
@@ -28,7 +27,6 @@ class Server:
         self.log(f"\n--- START TRANSMISJI ---")
         self.log(f"[LIDER {self.server_id}] Wysyła wiadomość: {message_data}")
 
-        # TEGO BRAKOWAŁO W TWOIM KODZIE:
         encoded_packet = self.rs.encode(message_data)
         self.log(f"[LIDER {self.server_id}] Zakodowano RS(7,3): {encoded_packet}")
 
