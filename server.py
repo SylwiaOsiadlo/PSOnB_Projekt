@@ -1,17 +1,17 @@
 # Nazwa pliku: server.py
 import time
-from typing import List
-from rs_codec import RSCoder  # <-- IMPORTUJEMY NASZ MODUŁ
+from typing import List, Callable, Optional
+from rs_codec import RSCoder
 
 
 class Server:
-    def __init__(self, server_id: int):
+    def __init__(self, server_id: int, log_callback: Optional[Callable] = None):
         self.server_id = server_id
         self.neighbors: List['Server'] = []
         self.is_leader = False
-        self.received_messages = []
-        # Inicjalizacja kodeka Reeda-Solomona
         self.rs = RSCoder()
+        # Funkcja do wysyłania tekstu do GUI (jeśli brak, używa zwykłego print)
+        self.log = log_callback if log_callback else print
 
     def connect_neighbor(self, other_server: 'Server'):
         if other_server not in self.neighbors:
@@ -20,54 +20,43 @@ class Server:
 
     def set_as_leader(self):
         self.is_leader = True
-        print(f"--- [INFO] Serwer {self.server_id} został wybrany na LIDERA ---")
+        self.log(f"[INFO] Serwer {self.server_id} przejął rolę LIDERA.")
 
     def broadcast_message(self, message_data: List[int], simulation_error_target: int = -1):
-        """
-        message_data: lista danych do wysłania.
-        simulation_error_target: ID serwera, który ma otrzymać uszkodzony pakiet (dla testów).
-                                 Domyślnie -1 (brak błędów).
-        """
-        if not self.is_leader:
-            return
+        if not self.is_leader: return
 
-        print(f"\n[LIDER {self.server_id}] Otrzymał zlecenie wysłania: {message_data}")
+        self.log(f"\n--- START TRANSMISJI ---")
+        self.log(f"[LIDER {self.server_id}] Wysyła wiadomość: {message_data}")
 
-        # 1. Kodowanie
         encoded_packet = self.rs.encode(message_data)
-        print(f"[LIDER {self.server_id}] Zakodowano: {encoded_packet}")
+        self.log(f"[LIDER {self.server_id}] Zakodowano RS(7,3): {encoded_packet}")
 
-        # 2. Rozsyłanie
         for neighbor in self.neighbors:
-            print(f"  -> Transmisja do Serwera {neighbor.server_id}...")
-            time.sleep(0.5)
+            time.sleep(0.5)  # Opóźnienie dla efektu wizualnego
 
             packet_to_send = list(encoded_packet)
 
-            # --- LOGIKA WPROWADZANIA BŁĘDU (DYNAMICZNA) ---
-            # Sprawdzamy, czy ten sąsiad został wskazany jako cel ataku/błędu
+            # Symulacja błędu
             if neighbor.server_id == simulation_error_target:
-                print(f"     [SYMULACJA] Celowe uszkodzenie symbolu dla Serwera {neighbor.server_id}!")
+                self.log(f"   [ATAK] Uszkadzanie pakietu dla Serwera {neighbor.server_id}!")
+                original_val = packet_to_send[0]
+                packet_to_send[0] = (original_val + 1) % 8
+                self.log(f"   [ATAK] Zmieniono: {original_val} -> {packet_to_send[0]}")
 
-                # Typ błędu: Zmiana wartości jednego symbolu (Bit flip / Symbol corruption)
-                # Zmieniamy pierwszy element na przeciwny w ciele GF(8) lub po prostu inny
-                original = packet_to_send[0]
-                packet_to_send[0] = (original + 1) % 8
-
-                print(f"     [SYMULACJA] Zmieniono: {original} -> {packet_to_send[0]}")
-
+            self.log(f"   -> Wysłano do Serwera {neighbor.server_id}: {packet_to_send}")
             neighbor.receive_packet(packet_to_send, sender_id=self.server_id)
 
     def receive_packet(self, encoded_data: list, sender_id: int):
-        print(f"    [Serwer {self.server_id}] Odebrano surowe dane: {encoded_data}")
+        self.log(f"       [Serwer {self.server_id}] Odebrano: {encoded_data}")
 
-        # 4. DEKODOWANIE I KOREKCJA
         decoded_data = self.rs.decode(encoded_data)
 
-        print(f"    [Serwer {self.server_id}] Po dekodowaniu RS: {decoded_data}")
-        self.process_data(decoded_data)
+        # Weryfikacja czy nastąpiła naprawa
+        re_encoded = self.rs.encode(decoded_data) if decoded_data else []
 
-    def process_data(self, data):
-        """Wyświetla ostateczny wynik po dekodowaniu."""
-        # Nie porównujemy już ze "sztywnym" wzorcem, bo wiadomości są dynamiczne.
-        print(f"    [Serwer {self.server_id}] ==> Odebrana wiadomość (finalna): {data}")
+        if decoded_data is None:
+            self.log(f"       [Serwer {self.server_id}] BLAD_KRYTYCZNY: Nie udało się naprawić.")
+        elif re_encoded != encoded_data:
+            self.log(f"       [Serwer {self.server_id}] KOREKCJA: Naprawiono błędy! Wynik: {decoded_data}")
+        else:
+            self.log(f"       [Serwer {self.server_id}] PAKIET_OK: Pakiet poprawny: {decoded_data}")
